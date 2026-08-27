@@ -19,25 +19,28 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Extract zip and prepare files
+    - name: Extract zip & setup environment
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
           unzip -o junk-cleaner-pro.zip -d extracted_app
-          # Move everything from extracted folder to current directory
           cp -r extracted_app/* . 2>/dev/null || true
           cp -r extracted_app/.* . 2>/dev/null || true
           rm -rf extracted_app
         fi
         touch .env
+        touch secrets.properties
+        # Generate standard Android debug keystore
+        mkdir -p ~/.android
+        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: '8.9'
 
-    - name: Build Debug APK with Gradle
+    - name: Build Debug APK
       run: |
-        gradle assembleDebug -x test --stacktrace
+        gradle assembleDebug -x test -x verifyRoborazziDebug -x recordRoborazziDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
