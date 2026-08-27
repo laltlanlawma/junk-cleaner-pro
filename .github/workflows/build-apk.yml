@@ -19,7 +19,7 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Extract zip & setup environment
+    - name: Extract zip and fix configuration
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
           unzip -o junk-cleaner-pro.zip -d extracted_app
@@ -29,9 +29,10 @@ jobs:
         fi
         touch .env
         touch secrets.properties
-        # Generate standard Android debug keystore
-        mkdir -p ~/.android
-        keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" || true
+        # Remove Google AI Studio specific signing line if present
+        if [ -f "app/build.gradle.kts" ]; then
+          sed -i '/signingConfig = signingConfigs.getByName("debugConfig")/d' app/build.gradle.kts
+        fi
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
@@ -40,7 +41,7 @@ jobs:
 
     - name: Build Debug APK
       run: |
-        gradle assembleDebug -x test -x verifyRoborazziDebug -x recordRoborazziDebug --stacktrace
+        gradle assembleDebug -x test --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
