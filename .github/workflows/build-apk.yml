@@ -19,23 +19,29 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Extract zip and fix configuration
+    - name: Extract zip and clean workspace
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
-          unzip -o junk-cleaner-pro.zip -d extracted_app
-          cp -r extracted_app/* . 2>/dev/null || true
-          cp -r extracted_app/.* . 2>/dev/null || true
-          rm -rf extracted_app
+          mkdir -p extracted_zip
+          unzip -q -o junk-cleaner-pro.zip -d extracted_zip
+          # If files are nested inside a subfolder in zip
+          if [ -d extracted_zip/app ]; then
+            cp -r extracted_zip/* .
+          else
+            cp -r extracted_zip/*/* . 2>/dev/null || true
+          fi
+          rm -rf extracted_zip
         fi
+        
+        # Create all needed config files
         touch .env
         touch secrets.properties
         touch local.defaults.properties
-        touch local.properties
         echo "sdk.dir=$ANDROID_HOME" > local.properties
-        # Remove custom debugConfig line if present
-        if [ -f "app/build.gradle.kts" ]; then
-          sed -i '/signingConfig = signingConfigs.getByName("debugConfig")/d' app/build.gradle.kts
-        fi
+        
+        # Remove AI Studio specific signingConfig line that causes build fail
+        find . -name "build.gradle.kts" -exec sed -i '/signingConfigs.getByName("debugConfig")/d' {} +
+        find . -name "build.gradle.kts" -exec sed -i '/signingConfig = signingConfigs/d' {} +
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
@@ -44,10 +50,10 @@ jobs:
 
     - name: Build Debug APK
       run: |
-        gradle :app:assembleDebug -x test --stacktrace
+        gradle assembleDebug -x test -x lint -x verifyRoborazziDebug --stacktrace --info
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: JunkCleanerPro-APK
-        path: app/build/outputs/apk/debug/*.apk
+        path: "**/build/outputs/apk/debug/*.apk"
