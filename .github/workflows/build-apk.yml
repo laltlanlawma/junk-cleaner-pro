@@ -19,7 +19,10 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Extract zip and fix configuration
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Extract zip and clean configs
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
           mkdir -p temp_app
@@ -32,12 +35,10 @@ jobs:
           rm -rf temp_app
         fi
 
-        # Remove configuration cache and old caches
-        rm -rf .gradle
-        rm -rf build
-        rm -rf app/build
+        # Accept all Android licenses
+        yes | sdkmanager --licenses || true
 
-        # Clean up signing config lines
+        # Remove local signing configurations
         find . -name "build.gradle.kts" -exec sed -i '/signingConfigs.getByName("debugConfig")/d' {} +
         find . -name "build.gradle.kts" -exec sed -i '/signingConfig = signingConfigs/d' {} +
 
@@ -51,10 +52,10 @@ jobs:
 
     - name: Build Debug APK
       run: |
-        gradle assembleDebug -x test --no-configuration-cache --no-daemon --stacktrace
+        gradle :app:assembleDebug -x test -x lint --no-daemon --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: JunkCleanerPro-APK
-        path: "**/build/outputs/apk/debug/*.apk"
+        path: "app/build/outputs/apk/debug/*.apk"
