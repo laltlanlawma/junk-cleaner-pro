@@ -1,0 +1,7 @@
+{
+  "name": "Junk Cleaner Pro",
+  "description": "WhatsApp, Facebook, Messenger, YouTube, Instagram, Chrome, Twitter junk files & cache cleaner native Android app. Developer: Laltlanlawma.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
