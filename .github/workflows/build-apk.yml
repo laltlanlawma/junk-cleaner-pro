@@ -22,26 +22,25 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Extract zip and clean configs
+    - name: Clean and extract clean project
       run: |
+        # Make a clean work directory
+        mkdir ../clean_build
         if [ -f "junk-cleaner-pro.zip" ]; then
-          mkdir -p temp_app
-          unzip -q -o junk-cleaner-pro.zip -d temp_app
-          if [ -d temp_app/app ]; then
-            cp -r temp_app/* .
-          else
-            cp -r temp_app/*/* . 2>/dev/null || true
-          fi
-          rm -rf temp_app
+          unzip -q junk-cleaner-pro.zip -d ../clean_build/
+        else
+          cp -r * ../clean_build/
         fi
-
-        # Accept all Android licenses
-        yes | sdkmanager --licenses || true
-
-        # Remove local signing configurations
+        
+        # Replace current dir with clean files
+        rm -rf *
+        cp -r ../clean_build/* . 2>/dev/null || true
+        cp -r ../clean_build/.* . 2>/dev/null || true
+        
+        # Remove AI Studio only signing configuration
         find . -name "build.gradle.kts" -exec sed -i '/signingConfigs.getByName("debugConfig")/d' {} +
         find . -name "build.gradle.kts" -exec sed -i '/signingConfig = signingConfigs/d' {} +
-
+        
         touch .env
         touch secrets.properties
 
@@ -52,7 +51,7 @@ jobs:
 
     - name: Build Debug APK
       run: |
-        gradle :app:assembleDebug -x test -x lint --no-daemon --stacktrace
+        gradle :app:assembleDebug -x test -x lint -x verifyRoborazziDebug --no-daemon --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
