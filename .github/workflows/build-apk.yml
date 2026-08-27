@@ -13,47 +13,49 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up JDK 21
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: '17'
         distribution: 'temurin'
 
-    - name: Extract zip and clean workspace
+    - name: Extract and clean plugins
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
-          mkdir -p extracted_zip
-          unzip -q -o junk-cleaner-pro.zip -d extracted_zip
-          # If files are nested inside a subfolder in zip
-          if [ -d extracted_zip/app ]; then
-            cp -r extracted_zip/* .
+          mkdir -p temp_zip
+          unzip -q -o junk-cleaner-pro.zip -d temp_zip
+          if [ -d temp_zip/app ]; then
+            cp -r temp_zip/* .
           else
-            cp -r extracted_zip/*/* . 2>/dev/null || true
+            cp -r temp_zip/*/* . 2>/dev/null || true
           fi
-          rm -rf extracted_zip
+          rm -rf temp_zip
         fi
-        
-        # Create all needed config files
+
+        # Remove problematic plugins for pure debug build
+        sed -i '/secrets-gradle-plugin/d' build.gradle.kts || true
+        sed -i '/roborazzi/d' build.gradle.kts || true
+        sed -i '/secrets.gradle.plugin/d' build.gradle.kts || true
+        sed -i '/secrets-gradle-plugin/d' app/build.gradle.kts || true
+        sed -i '/secrets {/d' app/build.gradle.kts || true
+        sed -i '/roborazzi/d' app/build.gradle.kts || true
+        sed -i '/signingConfigs.getByName("debugConfig")/d' app/build.gradle.kts || true
+        sed -i '/signingConfig = signingConfigs/d' app/build.gradle.kts || true
+
         touch .env
         touch secrets.properties
-        touch local.defaults.properties
-        echo "sdk.dir=$ANDROID_HOME" > local.properties
-        
-        # Remove AI Studio specific signingConfig line that causes build fail
-        find . -name "build.gradle.kts" -exec sed -i '/signingConfigs.getByName("debugConfig")/d' {} +
-        find . -name "build.gradle.kts" -exec sed -i '/signingConfig = signingConfigs/d' {} +
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
-        gradle-version: '8.10.2'
+        gradle-version: '8.8'
 
-    - name: Build Debug APK
+    - name: Build APK with Gradle
       run: |
-        gradle assembleDebug -x test -x lint -x verifyRoborazziDebug --stacktrace --info
+        gradle assembleDebug -x test --no-daemon --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: JunkCleanerPro-APK
-        path: "**/build/outputs/apk/debug/*.apk"
+        path: "app/build/outputs/apk/debug/*.apk"
