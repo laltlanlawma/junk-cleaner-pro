@@ -19,28 +19,27 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Extract and clean plugins
+    - name: Extract zip and fix configuration
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
-          mkdir -p temp_zip
-          unzip -q -o junk-cleaner-pro.zip -d temp_zip
-          if [ -d temp_zip/app ]; then
-            cp -r temp_zip/* .
+          mkdir -p temp_app
+          unzip -q -o junk-cleaner-pro.zip -d temp_app
+          if [ -d temp_app/app ]; then
+            cp -r temp_app/* .
           else
-            cp -r temp_zip/*/* . 2>/dev/null || true
+            cp -r temp_app/*/* . 2>/dev/null || true
           fi
-          rm -rf temp_zip
+          rm -rf temp_app
         fi
 
-        # Remove problematic plugins for pure debug build
-        sed -i '/secrets-gradle-plugin/d' build.gradle.kts || true
-        sed -i '/roborazzi/d' build.gradle.kts || true
-        sed -i '/secrets.gradle.plugin/d' build.gradle.kts || true
-        sed -i '/secrets-gradle-plugin/d' app/build.gradle.kts || true
-        sed -i '/secrets {/d' app/build.gradle.kts || true
-        sed -i '/roborazzi/d' app/build.gradle.kts || true
-        sed -i '/signingConfigs.getByName("debugConfig")/d' app/build.gradle.kts || true
-        sed -i '/signingConfig = signingConfigs/d' app/build.gradle.kts || true
+        # Remove configuration cache and old caches
+        rm -rf .gradle
+        rm -rf build
+        rm -rf app/build
+
+        # Clean up signing config lines
+        find . -name "build.gradle.kts" -exec sed -i '/signingConfigs.getByName("debugConfig")/d' {} +
+        find . -name "build.gradle.kts" -exec sed -i '/signingConfig = signingConfigs/d' {} +
 
         touch .env
         touch secrets.properties
@@ -48,14 +47,14 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
-        gradle-version: '8.8'
+        gradle-version: '8.10.2'
 
-    - name: Build APK with Gradle
+    - name: Build Debug APK
       run: |
-        gradle assembleDebug -x test --no-daemon --stacktrace
+        gradle assembleDebug -x test --no-configuration-cache --no-daemon --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: JunkCleanerPro-APK
-        path: "app/build/outputs/apk/debug/*.apk"
+        path: "**/build/outputs/apk/debug/*.apk"
