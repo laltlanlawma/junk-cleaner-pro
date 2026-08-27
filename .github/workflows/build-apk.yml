@@ -19,30 +19,25 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Extract project files if zipped
+    - name: Extract zip and prepare files
       run: |
         if [ -f "junk-cleaner-pro.zip" ]; then
-          unzip -o junk-cleaner-pro.zip -d temp_extract
-          # If files are in root of zip or subfolder, copy to root
-          if [ -f "temp_extract/build.gradle.kts" ]; then
-            cp -r temp_extract/* .
-          else
-            cp -r temp_extract/*/* . 2>/dev/null || true
-          fi
-          rm -rf temp_extract
+          unzip -o junk-cleaner-pro.zip -d extracted_app
+          # Move everything from extracted folder to current directory
+          cp -r extracted_app/* . 2>/dev/null || true
+          cp -r extracted_app/.* . 2>/dev/null || true
+          rm -rf extracted_app
         fi
         touch .env
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.9'
 
-    - name: Make Gradlew Executable
+    - name: Build Debug APK with Gradle
       run: |
-        chmod +x ./gradlew || true
-
-    - name: Build Debug APK
-      run: |
-        ./gradlew assembleDebug -x test --no-daemon --stacktrace
+        gradle assembleDebug -x test --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
